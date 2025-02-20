@@ -4,15 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
-// AuthServiceURL adalah URL endpoint validasi token
-const AuthServiceURL = "https://api2.ejourney.id/auth-service/auth/validate"
-
 // MiddlewareAuth adalah middleware untuk validasi token dari auth service
 func MiddlewareAuth(c *gin.Context) {
+	// Ambil URL dari environment variable
+	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
+	if authServiceURL == "" {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Server error", "message": "AUTH_SERVICE_URL is not set"})
+		return
+	}
+
 	// Cek header Authorization
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
@@ -21,7 +26,7 @@ func MiddlewareAuth(c *gin.Context) {
 	}
 
 	// Validasi token dengan auth service
-	authRes, err := validateToken(authHeader)
+	authRes, err := validateToken(authServiceURL, authHeader)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized", "message": err.Error()})
 		return
@@ -38,9 +43,9 @@ func MiddlewareAuth(c *gin.Context) {
 }
 
 // validateToken mengirim request ke auth service untuk validasi token
-func validateToken(token string) (*AuthResponse, error) {
+func validateToken(authServiceURL, token string) (*AuthResponse, error) {
 	// Buat request ke auth/validate
-	req, err := http.NewRequest("GET", AuthServiceURL, nil)
+	req, err := http.NewRequest("GET", authServiceURL, nil)
 	if err != nil {
 		return nil, errors.New("failed to create request")
 	}
